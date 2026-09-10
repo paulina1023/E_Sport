@@ -510,7 +510,7 @@ function App() {
                   <strong>{porcentajeFixture}%</strong>
                 </div>
                 <div className="progress">
-                  <span style={{ width: `${porcentajeFixture}%` }} />
+                  <span style={{ width: `${porcentajeFixture}%` }}/>
                 </div>
               </div>
               <div className="next-event">
