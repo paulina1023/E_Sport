@@ -1,43 +1,14 @@
 import { useEffect, useState } from "react";
 import "./index.css";
-
 import AuthScreen from "./components/AuthScreen.jsx";
 import Navbar from "./components/Navbar.jsx";
 import { normalizarSesion } from "./utils/session.js";
-=======
-
-
 const datosIniciales = {
   torneos: 0,
   equipos: 0,
   partidos: 0,
   proximos: [],
 };
-
-
-=======
-const perfilesIniciales = [
-  {
-    rol: "Espectador",
-    etiqueta: "Espectador",
-    email: "espectador@esports.local",
-    password: "Espectador123!",
-  },
-  {
-    rol: "Delegado",
-    etiqueta: "Líder de equipo",
-    email: "lider@esports.local",
-    password: "Lider123!",
-  },
-  {
-    rol: "Administrador",
-    etiqueta: "Administrador de torneos",
-    email: "admin@esports.local",
-    password: "Admin123!",
-  },
-];
-
-
 function formatearFecha(valor) {
   return new Intl.DateTimeFormat("es-CO", {
     weekday: "short",
@@ -96,7 +67,6 @@ async function cargarRecursosApi(sesion) {
   };
 }
 
-
 function validarTextoRequerido(valor, etiqueta) {
   return typeof valor === "string" && valor.trim()
     ? ""
@@ -133,12 +103,6 @@ function App() {
       return normalizarSesion(
         JSON.parse(localStorage.getItem("esports-sesion")),
       );
-
-function App() {
-  const [sesion, setSesion] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("esports-sesion")) || null;
-
     } catch {
       return null;
     }
@@ -154,9 +118,7 @@ function App() {
   const [cargandoRecursos, setCargandoRecursos] = useState(true);
   const [errorRecursos, setErrorRecursos] = useState("");
   const [vista, setVista] = useState("Resumen");
-
   const [busqueda, setBusqueda] = useState("");
-
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [mostrarEquipo, setMostrarEquipo] = useState(false);
   const [mostrarPartido, setMostrarPartido] = useState(false);
@@ -221,14 +183,11 @@ function App() {
 
   async function crearTorneo(evento) {
     evento.preventDefault();
-
     const errorValidacion = validarFormularioOperativo("torneo", formulario);
     if (errorValidacion) {
       setAviso(errorValidacion);
       return;
     }
-
-
     try {
       const response = await fetch("/api/torneos", {
         method: "POST",
@@ -251,14 +210,11 @@ function App() {
 
   async function crearEquipo(evento) {
     evento.preventDefault();
-
     const errorValidacion = validarFormularioOperativo("equipo", formularioEquipo);
     if (errorValidacion) {
       setAviso(errorValidacion);
       return;
     }
-
-
     try {
       await solicitarApi("/api/equipos", sesion.token, {
         method: "POST",
@@ -277,13 +233,11 @@ function App() {
 
   async function crearPartido(evento) {
     evento.preventDefault();
-
     const errorValidacion = validarFormularioOperativo("partido", formularioPartido);
     if (errorValidacion) {
       setAviso(errorValidacion);
       return;
     }
-
     try {
       await solicitarApi("/api/partidos", sesion.token, {
         method: "POST",
@@ -305,7 +259,6 @@ function App() {
 
   async function registrarResultado(evento) {
     evento.preventDefault();
-
     if (
       Number(formularioResultado.goles_local) < 0 ||
       Number(formularioResultado.goles_visita) < 0
@@ -313,8 +266,6 @@ function App() {
       setAviso("Los goles no pueden ser negativos");
       return;
     }
-
-
     try {
       await solicitarApi(
         `/api/partidos/${partidoResultado.id_partido}/resultado`,
@@ -338,7 +289,6 @@ function App() {
     }
   }
 
-
   if (!sesion) {
     return (
       <AuthScreen
@@ -353,9 +303,6 @@ function App() {
       />
     );
   }
-
-  if (!sesion) return <LoginScreen onLogin={setSesion} />;
-
 
   if (sesion.user.rol === "Espectador") {
     return (
@@ -411,7 +358,6 @@ function App() {
           </div>
           <span className="online" />
         </div>
-
         <Navbar
           vista={vista}
           onChange={(nuevaVista) => {
@@ -419,26 +365,6 @@ function App() {
             setBusqueda("");
           }}
         />
-
-        <nav>
-          {[
-            "Resumen",
-            "Torneos",
-            "Equipos",
-            "Partidos",
-            "Tabla de posiciones",
-          ].map((elemento, index) => (
-            <button
-              className={vista === elemento ? "nav-item active" : "nav-item"}
-              onClick={() => setVista(elemento)}
-              key={elemento}
-            >
-              <span>{["01", "02", "03", "04", "05"][index]}</span>
-              {elemento}
-            </button>
-          ))}
-        </nav>
-
       </aside>
       <main className="main-content">
         <header className="topbar">
@@ -646,10 +572,8 @@ function App() {
             recursos={recursos}
             cargando={cargandoRecursos}
             puedeAdministrar={puedeAdministrar}
-
             busqueda={busqueda}
             onBusqueda={setBusqueda}
-
             onResultado={(partido) => setPartidoResultado(partido)}
           />
         )}
@@ -1193,112 +1117,6 @@ function BracketRound({ title, teams, final = false }) {
   );
 }
 
-
-function LoginScreen({ onLogin }) {
-  const [perfil, setPerfil] = useState(perfilesIniciales[2]);
-  const [email, setEmail] = useState(perfilesIniciales[2].email);
-  const [password, setPassword] = useState(perfilesIniciales[2].password);
-  const [error, setError] = useState("");
-  const [cargando, setCargando] = useState(false);
-
-  function seleccionarPerfil(nuevoPerfil) {
-    setPerfil(nuevoPerfil);
-    setEmail(nuevoPerfil.email);
-    setPassword(nuevoPerfil.password);
-    setError("");
-  }
-
-  async function iniciarSesion(evento) {
-    evento.preventDefault();
-    setCargando(true);
-    setError("");
-    try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const resultado = await response.json();
-      if (!response.ok)
-        throw new Error(resultado.error || "No fue posible iniciar sesión");
-      localStorage.setItem("esports-sesion", JSON.stringify(resultado));
-      onLogin(resultado);
-    } catch (exception) {
-      setError(exception.message);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  return (
-    <main className="login-shell">
-      <section className="login-aside">
-        <div className="brand login-brand">
-          <span className="brand-mark">E</span>
-          <span>
-            E-SPORT <small>CONTROL</small>
-          </span>
-        </div>
-      </section>
-      <section className="login-card">
-        <div className="login-heading">
-          <h2>Bienvenido de vuelta</h2>
-          <p>Selecciona tu perfil para entrar al centro de operaciones.</p>
-        </div>
-        <div className="role-options">
-          {perfilesIniciales.map((opcion) => (
-            <button
-              type="button"
-              className={
-                perfil.rol === opcion.rol
-                  ? "role-option selected"
-                  : "role-option"
-              }
-              onClick={() => seleccionarPerfil(opcion)}
-              key={opcion.rol}
-            >
-              <span className="role-icon">
-                {opcion.rol === "Administrador"
-                  ? "A"
-                  : opcion.rol === "Delegado"
-                    ? "L"
-                    : "E"}
-              </span>
-              <span>{opcion.etiqueta}</span>
-            </button>
-          ))}
-        </div>
-        <form className="login-form" onSubmit={iniciarSesion}>
-          <label>
-            Correo electrónico
-            <input
-              type="email"
-              value={email}
-              onChange={(evento) => setEmail(evento.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Contraseña
-            <input
-              type="password"
-              value={password}
-              onChange={(evento) => setPassword(evento.target.value)}
-              required
-            />
-          </label>
-          {error && <p className="login-error">{error}</p>}
-          <button className="primary login-submit" disabled={cargando}>
-            {cargando ? "Comprobando..." : "Entrar al sistema"}
-          </button>
-        </form>
-        <p className="login-hint">Cuentas iniciales listas para comenzar.</p>
-      </section>
-    </main>
-  );
-}
-
-
 function Metric({ label, value, note, accent }) {
   return (
     <div className="metric">
@@ -1315,10 +1133,8 @@ function SectionPage({
   recursos,
   cargando,
   puedeAdministrar,
-
   busqueda,
   onBusqueda,
-
   onResultado,
 }) {
   const filasTorneos = recursos.torneos.map((torneo) => [
@@ -1369,15 +1185,12 @@ function SectionPage({
       filas: filasTabla,
     },
   }[vista];
-
   const termino = busqueda.trim().toLowerCase();
   const filasFiltradas = contenido.filas.filter((fila) =>
     fila.slice(0, 3).some((valor) =>
       String(valor || "").toLowerCase().includes(termino),
     ),
   );
-
-
   return (
     <section className="page-section">
       <div className="page-intro">
@@ -1385,7 +1198,6 @@ function SectionPage({
         <h2>{contenido.title}</h2>
         <p>{contenido.description}</p>
       </div>
-
       <div className="list-toolbar">
         <label className="search-field">
           Buscar
@@ -1403,13 +1215,6 @@ function SectionPage({
           <p className="empty">Cargando información...</p>
         ) : filasFiltradas.length ? (
           filasFiltradas.map((fila) => (
-
-      <div className="data-list">
-        {cargando ? (
-          <p className="empty">Cargando información...</p>
-        ) : contenido.filas.length ? (
-          contenido.filas.map((fila) => (
-
             <div
               className={`data-row ${fila[0] === "Quantum XI" ? "danger" : ""}`}
               key={fila[3]?.id_partido || fila[0]}
@@ -1431,15 +1236,11 @@ function SectionPage({
             </div>
           ))
         ) : (
-
           <p className="empty">
             {termino
               ? "No hay resultados para tu búsqueda."
               : "No hay registros disponibles todavía."}
           </p>
-
-          <p className="empty">No hay registros disponibles todavía.</p>
-
         )}
       </div>
     </section>
