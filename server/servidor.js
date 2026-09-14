@@ -24,7 +24,6 @@ async function normalizarColumnasDeFecha() {
     });
     if (!tablas.length) continue;
 
-
     const [columnas] = await conexion.query(`SHOW COLUMNS FROM \`${tabla}\``);
     const nombres = columnas.map(({ Field }) => Field);
     if (nombres.includes("createdAt") && !nombres.includes("created_at")) {
