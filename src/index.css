@@ -992,6 +992,62 @@ p {
   font-size: 10px;
   margin: 15px 0;
 }
+
+.login-form .field {
+  display: grid;
+  gap: 7px;
+  color: #596273;
+  font-size: 11px;
+}
+.login-form .field-error input {
+  border-color: #d83f45;
+  box-shadow: 0 0 0 2px #fbe1e2;
+}
+.field-message {
+  color: #c33038;
+  font-size: 10px;
+}
+.auth-link {
+  border: 0;
+  background: transparent;
+  color: #2f9e69;
+  font-size: 11px;
+  padding: 4px;
+}
+.auth-link:hover {
+  text-decoration: underline;
+}
+.form-success {
+  color: #23784f;
+  background: #e5f5ec;
+  padding: 9px;
+  font-size: 11px;
+}
+.list-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 20px 0 10px;
+}
+.search-field {
+  display: grid;
+  gap: 6px;
+  color: #596273;
+  font-size: 11px;
+  width: min(100%, 320px);
+}
+.search-field input {
+  border: 1px solid #dfe3e9;
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: #171b25;
+  background: #fff;
+}
+.search-field input:focus {
+  outline: 2px solid #b8e2ca;
+  border-color: #2f9e69;
+}
+
+
 .login-form input {
   display: block;
   width: 100%;

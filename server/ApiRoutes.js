@@ -1,6 +1,14 @@
 import { Router } from "express";
 import { autenticar, autorizar } from "./middleware/AuthMiddleware.js";
+
+import {
+  validarCamposRequeridos,
+  validarLogin,
+  validarRegistro,
+} from "./middleware/ValidationMiddleware.js";
+
 import { validarCamposRequeridos } from "./middleware/ValidationMiddleware.js";
+
 import * as autenticacionController from "./controllers/AutenticacionController.js";
 import * as torneoController from "./controllers/TorneoController.js";
 import * as equipoController from "./controllers/EquipoController.js";
@@ -11,12 +19,19 @@ enrutador.get("/health", (req, res) =>
 );
 enrutador.post(
   "/auth/register",
+
+  validarRegistro,
+
   validarCamposRequeridos("nombre", "email", "password"),
+
   autenticacionController.registrar,
 );
 enrutador.post(
   "/auth/login",
-  validarCamposRequeridos("email", "password"),
+
+  validarLogin,
+validarCamposRequeridos("email", "password"),
+
   autenticacionController.iniciarSesion,
 );
 enrutador.get("/dashboard", torneoController.obtenerResumen);
