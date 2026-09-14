@@ -4,7 +4,7 @@ import "./index.css";
 import AuthScreen from "./components/AuthScreen.jsx";
 import Navbar from "./components/Navbar.jsx";
 import { normalizarSesion } from "./utils/session.js";
-=======
+
 
 
 const datosIniciales = {
@@ -15,7 +15,7 @@ const datosIniciales = {
 };
 
 
-=======
+
 const perfilesIniciales = [
   {
     rol: "Espectador",
@@ -1404,46 +1404,38 @@ function SectionPage({
         ) : filasFiltradas.length ? (
           filasFiltradas.map((fila) => (
 
-      <div className="data-list">
-        {cargando ? (
-          <p className="empty">Cargando información...</p>
-        ) : contenido.filas.length ? (
-          contenido.filas.map((fila) => (
-
-            <div
-              className={`data-row ${fila[0] === "Quantum XI" ? "danger" : ""}`}
-              key={fila[3]?.id_partido || fila[0]}
+<div className="data-list">
+  {cargando ? (
+    <p className="empty">Cargando información...</p>
+  ) : filasFiltradas.length > 0 ? (
+    filasFiltradas.map((fila) => (
+      <div
+        className={`data-row ${fila[0] === "Quantum XI" ? "danger" : ""}`}
+        key={fila[3]?.id_partido || fila[0]}
+      >
+        <strong>{fila[0]}</strong>
+        <span>{fila[1]}</span>
+        <b>{fila[2]}</b>
+        {vista === "Partidos" &&
+          puedeAdministrar &&
+          fila[3]?.estado !== "Finalizado" && (
+            <button
+              className="row-action"
+              onClick={() => onResultado(fila[3])}
             >
-              <strong>{fila[0]}</strong>
-              <span>{fila[1]}</span>
-              <b>{fila[2]}</b>
-              {vista === "Partidos" &&
-                puedeAdministrar &&
-                fila[3]?.estado !== "Finalizado" && (
-                  <button
-                    className="row-action"
-                    onClick={() => onResultado(fila[3])}
-                  >
-                    Resultado
-                  </button>
-                )}
-              <span className="arrow">›</span>
-            </div>
-          ))
-        ) : (
-
-          <p className="empty">
-            {termino
-              ? "No hay resultados para tu búsqueda."
-              : "No hay registros disponibles todavía."}
-          </p>
-
-          <p className="empty">No hay registros disponibles todavía.</p>
-
-        )}
+              Resultado
+            </button>
+          )}
+        <span className="arrow">&gt;</span>
       </div>
-    </section>
-  );
-}
+    ))
+  ) : (
+    <p className="empty">
+      {termino
+        ? "No hay resultados para tu búsqueda."
+        : "No hay registros disponibles todavía."}
+    </p>
+  )}
+</div>
 
 export default App;
