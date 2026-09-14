@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 import { useEffect, useState } from "react";
 import "./index.css";
 
@@ -1301,4 +1299,3 @@ function SectionPage({
 }
 
 export default App;
->>>>>>> Stashed changes
