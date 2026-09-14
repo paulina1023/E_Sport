@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "client": "vite",
-    "server": "nodemon server/Servidor.js",
-    "start": "node server/Servidor.js",
+    "server": "nodemon server/servidor.js",
+    "start": "node server/servidor.js",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
