@@ -4,7 +4,11 @@ export function validarCamposRequeridos(...campos) {
 			(campo) =>
 				req.body[campo] === undefined ||
 				req.body[campo] === null ||
+
 				(typeof req.body[campo] === "string" && !req.body[campo].trim()),
+=======
+				req.body[campo] === "",
+
 		);
 		if (faltantes.length > 0) {
 			return res.status(400).json({
@@ -15,6 +19,7 @@ export function validarCamposRequeridos(...campos) {
 		return next();
 	};
 }
+
 
 export function validarLogin(req, res, next) {
 	const errores = [];
@@ -46,6 +51,8 @@ export function validarRegistro(req, res, next) {
 	req.body.email = email;
 	return next();
 }
+
+=======
 
 export function manejarErrores(error, req, res, next) {
 	if (res.headersSent) return next(error);

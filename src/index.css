@@ -992,6 +992,7 @@ p {
   font-size: 10px;
   margin: 15px 0;
 }
+
 .login-form .field {
   display: grid;
   gap: 7px;
@@ -1045,6 +1046,8 @@ p {
   outline: 2px solid #b8e2ca;
   border-color: #2f9e69;
 }
+
+
 .login-form input {
   display: block;
   width: 100%;
