@@ -3,12 +3,41 @@ import "./index.css";
 import AuthScreen from "./components/AuthScreen.jsx";
 import Navbar from "./components/Navbar.jsx";
 import { normalizarSesion } from "./utils/session.js";
+
+
 const datosIniciales = {
   torneos: 0,
   equipos: 0,
   partidos: 0,
   proximos: [],
 };
+
+
+
+
+const perfilesIniciales = [
+  {
+    rol: "Espectador",
+    etiqueta: "Espectador",
+    email: "espectador@esports.local",
+    password: "Espectador123!",
+  },
+  {
+    rol: "Delegado",
+    etiqueta: "Líder de equipo",
+    email: "lider@esports.local",
+    password: "Lider123!",
+  },
+  {
+    rol: "Administrador",
+    etiqueta: "Administrador de torneos",
+    email: "admin@esports.local",
+    password: "Admin123!",
+  },
+];
+
+
+
 function formatearFecha(valor) {
   return new Intl.DateTimeFormat("es-CO", {
     weekday: "short",
@@ -1215,6 +1244,7 @@ function SectionPage({
           <p className="empty">Cargando información...</p>
         ) : filasFiltradas.length ? (
           filasFiltradas.map((fila) => (
+
             <div
               className={`data-row ${fila[0] === "Quantum XI" ? "danger" : ""}`}
               key={fila[3]?.id_partido || fila[0]}
@@ -1242,9 +1272,40 @@ function SectionPage({
               : "No hay registros disponibles todavía."}
           </p>
         )}
+
+<div className="data-list">
+  {cargando ? (
+    <p className="empty">Cargando información...</p>
+  ) : filasFiltradas.length > 0 ? (
+    filasFiltradas.map((fila) => (
+      <div
+        className={`data-row ${fila[0] === "Quantum XI" ? "danger" : ""}`}
+        key={fila[3]?.id_partido || fila[0]}
+      >
+        <strong>{fila[0]}</strong>
+        <span>{fila[1]}</span>
+        <b>{fila[2]}</b>
+        {vista === "Partidos" &&
+          puedeAdministrar &&
+          fila[3]?.estado !== "Finalizado" && (
+            <button
+              className="row-action"
+              onClick={() => onResultado(fila[3])}
+            >
+              Resultado
+            </button>
+          )}
+        <span className="arrow">&gt;</span>
+
       </div>
-    </section>
-  );
-}
+    ))
+  ) : (
+    <p className="empty">
+      {termino
+        ? "No hay resultados para tu búsqueda."
+        : "No hay registros disponibles todavía."}
+    </p>
+  )}
+</div>
 
 export default App;
