@@ -7,8 +7,6 @@ import {
   validarRegistro,
 } from "./middleware/ValidationMiddleware.js";
 
-import { validarCamposRequeridos } from "./middleware/ValidationMiddleware.js";
-
 import * as autenticacionController from "./controllers/AutenticacionController.js";
 import * as torneoController from "./controllers/TorneoController.js";
 import * as equipoController from "./controllers/EquipoController.js";
@@ -19,19 +17,13 @@ enrutador.get("/health", (req, res) =>
 );
 enrutador.post(
   "/auth/register",
-
   validarRegistro,
-
-  validarCamposRequeridos("nombre", "email", "password"),
-
   autenticacionController.registrar,
 );
 enrutador.post(
   "/auth/login",
-
   validarLogin,
-validarCamposRequeridos("email", "password"),
-
+  validarLogin,
   autenticacionController.iniciarSesion,
 );
 enrutador.get("/dashboard", torneoController.obtenerResumen);
