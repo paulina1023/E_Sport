@@ -19,6 +19,41 @@ export const Usuario = conexion.define(
   },
   { tableName: "usuarios", createdAt: "created_at", updatedAt: "updated_at" },
 );
+export const RegistroUsuario = conexion.define(
+  "RegistroUsuario",
+  {
+    id_registro: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    id_usuario: { type: DataTypes.INTEGER, allowNull: false },
+    fecha_registro: {
+      type: DataTypes.DATE,
+      allowNull: false,
+      defaultValue: DataTypes.NOW,
+    },
+    estado: {
+      type: DataTypes.ENUM("Activo", "Cancelado"),
+      defaultValue: "Activo",
+    },
+    ip_registro: { type: DataTypes.STRING(45) },
+    user_agent: { type: DataTypes.STRING(255) },
+  },
+  { tableName: "registros_usuarios", timestamps: false },
+);
+export const RegistroEliminacion = conexion.define(
+  "RegistroEliminacion",
+  {
+    id_eliminacion: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+    entidad: { type: DataTypes.ENUM("Equipo", "Torneo"), allowNull: false },
+    id_entidad: { type: DataTypes.INTEGER, allowNull: false },
+    motivo: { type: DataTypes.ENUM("Descalificado", "Sancionado"), allowNull: false },
+    id_usuario: { type: DataTypes.INTEGER, allowNull: false },
+    fecha_eliminacion: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "registros_eliminaciones", timestamps: false },
+);
 export const Torneo = conexion.define(
   "Torneo",
   {
@@ -53,6 +88,10 @@ export const Equipo = conexion.define(
     nombre: { type: DataTypes.STRING(100), allowNull: false },
     escudo_url: { type: DataTypes.STRING(255) },
     id_delegado: { type: DataTypes.INTEGER, allowNull: false },
+    estado: {
+      type: DataTypes.ENUM("Activo", "Descalificado"),
+      defaultValue: "Activo",
+    },
   },
   { tableName: "equipos", createdAt: "created_at", updatedAt: "updated_at" },
 );
@@ -124,6 +163,10 @@ export const Partido = conexion.define(
 
 Usuario.hasMany(Equipo, { foreignKey: "id_delegado" });
 Equipo.belongsTo(Usuario, { foreignKey: "id_delegado", as: "delegado" });
+Usuario.hasMany(RegistroUsuario, { foreignKey: "id_usuario" });
+RegistroUsuario.belongsTo(Usuario, { foreignKey: "id_usuario" });
+Usuario.hasMany(RegistroEliminacion, { foreignKey: "id_usuario" });
+RegistroEliminacion.belongsTo(Usuario, { foreignKey: "id_usuario" });
 Equipo.hasMany(Jugador, { foreignKey: "id_equipo" });
 Jugador.belongsTo(Equipo, { foreignKey: "id_equipo" });
 Torneo.belongsToMany(Equipo, {

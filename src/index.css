@@ -403,6 +403,16 @@ p {
   color: #aab1bc;
   font-size: 22px;
 }
+.row-link {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  justify-self: end;
+  padding: 0 4px;
+}
+.row-link:hover {
+  color: #23784f;
+}
 .table-head,
 .standing-row {
   display: grid;
@@ -555,6 +565,17 @@ p {
 .modal .primary {
   width: 100%;
   margin-top: 7px;
+}
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+.modal-actions button {
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
 }
 .modal-context {
   color: #7e8798;
@@ -764,6 +785,20 @@ p {
   color: #23784f;
   border-bottom: 2px solid #2f9e69;
 }
+.spectator-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #8993a2;
+  cursor: pointer;
+  font: 11px inherit;
+  padding: 0 2px 12px;
+}
+.spectator-tabs button:hover,
+.spectator-tabs button.active {
+  color: #23784f;
+  border-bottom-color: #2f9e69;
+}
 .spectator-grid {
   display: grid;
   grid-template-columns: 1.55fr 1fr;
@@ -825,6 +860,7 @@ p {
 }
 .bracket-game {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 6px;
   padding: 10px 9px;
@@ -832,6 +868,13 @@ p {
   color: #596477;
   font-size: 9px;
   background: #fbfcfd;
+}
+.bracket-game span {
+  flex: 1 1 70%;
+}
+.bracket-game .winner {
+  color: #23784f;
+  font-weight: 700;
 }
 .bracket-game b {
   color: #202632;
@@ -877,7 +920,7 @@ p {
 }
 .spectator-table {
   display: grid;
-  grid-template-columns: 45px 1fr 70px 70px 70px;
+  grid-template-columns: 45px 1fr 55px 75px 70px 70px;
   align-items: center;
   min-height: 45px;
   border-top: 1px solid #edf0f3;
@@ -1151,7 +1194,7 @@ p {
     min-width: 125px;
   }
   .spectator-table {
-    grid-template-columns: 35px 1fr 38px 45px 45px;
+    grid-template-columns: 35px 1fr 38px 62px 45px 45px;
   }
   .login-shell {
     display: block;
@@ -1242,4 +1285,14 @@ p {
   .data-row b {
     display: none;
   }
+}
+.danger-action {
+  color: #a13d3d;
+  border-color: #e8bcbc;
+  background: #fff7f7;
+}
+.danger-action:hover {
+  color: #fff;
+  border-color: #a13d3d;
+  background: #a13d3d;
 }

@@ -17,6 +17,16 @@ export function obtenerTorneos(req, res, next) {
 export function registrarTorneo(req, res, next) {
 	return responder(res, next, () => torneoService.registrarTorneo(req.body), 201);
 }
+export function eliminarTorneo(req, res, next) {
+	return responder(res, next, () =>
+		torneoService.eliminarTorneo(req.params.id_torneo, req.body.motivo, req.usuario),
+	);
+}
+export function finalizarTorneo(req, res, next) {
+	return responder(res, next, () =>
+		torneoService.finalizarTorneo(req.params.id_torneo),
+	);
+}
 export function obtenerInscripciones(req, res, next) {
 	return responder(res, next, () => torneoService.obtenerInscripciones());
 }

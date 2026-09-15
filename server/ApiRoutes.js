@@ -5,6 +5,7 @@ import {
   validarCamposRequeridos,
   validarLogin,
   validarRegistro,
+  validarMotivoEliminacion,
 } from "./middleware/ValidationMiddleware.js";
 
 import * as autenticacionController from "./controllers/AutenticacionController.js";
@@ -42,6 +43,19 @@ enrutador.post(
   validarCamposRequeridos("nombre", "categoria", "fecha_inicio", "fecha_fin"),
   torneoController.registrarTorneo,
 );
+enrutador.delete(
+  "/torneos/:id_torneo",
+  autenticar,
+  autorizar("Administrador"),
+  validarMotivoEliminacion,
+  torneoController.eliminarTorneo,
+);
+enrutador.patch(
+  "/torneos/:id_torneo/finalizar",
+  autenticar,
+  autorizar("Administrador"),
+  torneoController.finalizarTorneo,
+);
 enrutador.get(
   "/inscripciones",
   autenticar,
@@ -54,6 +68,19 @@ enrutador.post(
   autorizar("Delegado"),
   validarCamposRequeridos("nombre", "id_torneo"),
   equipoController.registrarEquipo,
+);
+enrutador.delete(
+  "/equipos/:id_equipo",
+  autenticar,
+  autorizar("Administrador", "Delegado"),
+  validarMotivoEliminacion,
+  equipoController.eliminarEquipo,
+);
+enrutador.patch(
+  "/equipos/:id_equipo/descalificar",
+  autenticar,
+  autorizar("Administrador", "Delegado"),
+  equipoController.descalificarEquipo,
 );
 enrutador.post(
   "/equipos/:id_equipo/jugadores",

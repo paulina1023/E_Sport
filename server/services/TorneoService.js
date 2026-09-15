@@ -1,6 +1,7 @@
 import * as torneoRepository from "../repositories/TorneoRepository.js";
 import * as partidoRepository from "../repositories/PartidoRepository.js";
 import * as equipoRepository from "../repositories/EquipoRepository.js";
+import { conexion } from "../models/ModelosModel.js";
 
 export async function obtenerResumen() {
   const [torneos, equipos, partidos, proximos] = await Promise.all([
@@ -17,6 +18,31 @@ export function obtenerTorneos() {
 }
 export function registrarTorneo(datos) {
   return torneoRepository.crearTorneo(datos);
+}
+
+export async function eliminarTorneo(id_torneo, motivo, usuario) {
+  const torneo = await torneoRepository.buscarTorneoPorId(id_torneo);
+  if (!torneo) return null;
+  const transaccion = await conexion.transaction();
+  try {
+    await torneoRepository.registrarEliminacion(
+      { entidad: "Torneo", id_entidad: id_torneo, motivo, id_usuario: usuario.id_usuario },
+      transaccion,
+    );
+    await torneoRepository.eliminarTorneo(id_torneo, transaccion);
+    await transaccion.commit();
+    return { eliminado: true };
+  } catch (error) {
+    await transaccion.rollback();
+    throw error;
+  }
+}
+
+export async function finalizarTorneo(id_torneo) {
+  const torneo = await torneoRepository.buscarTorneoPorId(id_torneo);
+  if (!torneo) return null;
+  await torneoRepository.actualizarEstado(id_torneo, "Finalizado");
+  return { actualizado: true, estado: "Finalizado" };
 }
 export function obtenerInscripciones() {
   return torneoRepository.listarInscripciones();
@@ -35,9 +61,24 @@ export async function registrarPartido(datos) {
 }
 
 export async function obtenerTablaPosiciones(id_torneo) {
-  const partidos =
-    await partidoRepository.listarFinalizadosPorTorneo(id_torneo);
+  const [partidos, inscripciones] = await Promise.all([
+    partidoRepository.listarFinalizadosPorTorneo(id_torneo),
+    torneoRepository.listarEquiposInscritos(id_torneo),
+  ]);
   const tabla = new Map();
+  for (const inscripcion of inscripciones) {
+    tabla.set(inscripcion.Equipo.id_equipo, {
+      id_equipo: inscripcion.Equipo.id_equipo,
+      nombre_equipo: inscripcion.Equipo.nombre,
+      partidos_jugados: 0,
+      ganados: 0,
+      empatados: 0,
+      perdidos: 0,
+      goles_favor: 0,
+      goles_contra: 0,
+      puntos: 0,
+    });
+  }
   const actualizar = (id_equipo, goles_favor, goles_contra, puntos) => {
     const registro = tabla.get(id_equipo) || {
       id_equipo,
@@ -84,7 +125,9 @@ export async function obtenerTablaPosiciones(id_torneo) {
     .map((registro) => ({
       ...registro,
       nombre_equipo:
-        nombres.get(registro.id_equipo) || `Equipo #${registro.id_equipo}`,
+        registro.nombre_equipo ||
+        nombres.get(registro.id_equipo) ||
+        `Equipo #${registro.id_equipo}`,
       diferencia_goles: registro.goles_favor - registro.goles_contra,
     }))
     .sort(
@@ -97,6 +140,20 @@ export async function registrarResultado(
   goles_local,
   goles_visita,
 ) {
+  const partido = await partidoRepository.buscarPartidoPorId(id_partido);
+  if (!partido) return null;
+  const terminoPartido =
+    new Date(partido.fecha_hora).getTime() + 90 * 60 * 1000;
+  if (
+    partido.estado !== "Finalizado" &&
+    Date.now() < terminoPartido
+  ) {
+    const error = new Error(
+      "El resultado solo puede registrarse cuando termina el partido",
+    );
+    error.name = "SequelizeValidationError";
+    throw error;
+  }
   return partidoRepository.actualizarResultado(
     id_partido,
     goles_local,

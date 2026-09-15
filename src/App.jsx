@@ -14,6 +14,7 @@ function formatearFecha(valor) {
     weekday: "short",
     day: "2-digit",
     month: "short",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(valor));
@@ -28,6 +29,13 @@ function tiempoHasta(valor) {
   if (horas < 24) return `en ${horas} h`;
   const dias = Math.round(horas / 24);
   return `en ${dias} ${dias === 1 ? "día" : "días"}`;
+}
+
+function puedeRegistrarResultado(partido) {
+  if (partido.estado === "Finalizado") return true;
+  return (
+    new Date(partido.fecha_hora).getTime() + 90 * 60 * 1000 <= Date.now()
+  );
 }
 
 async function solicitarApi(ruta, token, opciones = {}) {
@@ -46,24 +54,28 @@ async function solicitarApi(ruta, token, opciones = {}) {
 
 async function cargarRecursosApi(sesion) {
   const [dashboard, torneos, equipos, partidos] = await Promise.all([
-    solicitarApi("/api/dashboard", sesion.token),
-    solicitarApi("/api/torneos"),
-    solicitarApi("/api/equipos"),
-    solicitarApi("/api/partidos"),
+        solicitarApi("/api/dashboard", sesion.token),
+        solicitarApi("/api/torneos"),
+        solicitarApi("/api/equipos"),
+        solicitarApi("/api/partidos"),
   ]);
-  const primerTorneo = torneos[0];
-  const tabla = primerTorneo
-    ? await solicitarApi(
-        `/api/torneos/${primerTorneo.id_torneo}/tabla-posiciones`,
-      )
-    : [];
+  const tablas = await Promise.all(
+    torneos.map(async (torneo) => ({
+      id_torneo: torneo.id_torneo,
+      nombre: torneo.nombre,
+      tabla: await solicitarApi(
+        `/api/torneos/${torneo.id_torneo}/tabla-posiciones`,
+      ),
+    })),
+  );
+  const tabla = tablas.find(({ tabla: datos }) => datos.length)?.tabla || [];
   const inscripciones =
     sesion.user.rol === "Espectador"
       ? []
       : await solicitarApi("/api/inscripciones", sesion.token);
   return {
     dashboard,
-    recursos: { torneos, equipos, partidos, tabla, inscripciones },
+    recursos: { torneos, equipos, partidos, tabla, tablas, inscripciones },
   };
 }
 
@@ -114,6 +126,7 @@ function App() {
     partidos: [],
     tabla: [],
     inscripciones: [],
+    tablas: [],
   });
   const [cargandoRecursos, setCargandoRecursos] = useState(true);
   const [errorRecursos, setErrorRecursos] = useState("");
@@ -124,6 +137,7 @@ function App() {
   const [mostrarPartido, setMostrarPartido] = useState(false);
   const [partidoResultado, setPartidoResultado] = useState(null);
   const [aviso, setAviso] = useState("");
+  const [eliminacionPendiente, setEliminacionPendiente] = useState(null);
   const [formularioEquipo, setFormularioEquipo] = useState({
     nombre: "",
     escudo_url: "",
@@ -281,6 +295,46 @@ function App() {
       );
       setAviso("Resultado registrado correctamente");
       setPartidoResultado(null);
+      const actualizados = await cargarRecursosApi(sesion);
+      setDatosPanel(actualizados.dashboard);
+      setRecursos(actualizados.recursos);
+    } catch (error) {
+      setAviso(error.message);
+    }
+  }
+
+  async function eliminarRegistro(evento) {
+    evento.preventDefault();
+    try {
+      await solicitarApi(
+        `/api/${eliminacionPendiente.tipo === "Torneo" ? "torneos" : "equipos"}/${eliminacionPendiente.id}`,
+        sesion.token,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ motivo: "Sancionado" }),
+        },
+      );
+      setAviso(`${eliminacionPendiente.tipo} eliminado correctamente`);
+      setEliminacionPendiente(null);
+      const actualizados = await cargarRecursosApi(sesion);
+      setDatosPanel(actualizados.dashboard);
+      setRecursos(actualizados.recursos);
+    } catch (error) {
+      setAviso(error.message);
+    }
+  }
+
+  async function cambiarEstadoEnLugarDeEliminar() {
+    const esTorneo = eliminacionPendiente.tipo === "Torneo";
+    try {
+      await solicitarApi(
+        `/api/${esTorneo ? "torneos" : "equipos"}/${eliminacionPendiente.id}/${esTorneo ? "finalizar" : "descalificar"}`,
+        sesion.token,
+        { method: "PATCH" },
+      );
+      setAviso(esTorneo ? "Torneo marcado como finalizado" : "Equipo marcado como descalificado");
+      setEliminacionPendiente(null);
       const actualizados = await cargarRecursosApi(sesion);
       setDatosPanel(actualizados.dashboard);
       setRecursos(actualizados.recursos);
@@ -572,9 +626,21 @@ function App() {
             recursos={recursos}
             cargando={cargandoRecursos}
             puedeAdministrar={puedeAdministrar}
+            idUsuario={sesion.user.id_usuario}
             busqueda={busqueda}
             onBusqueda={setBusqueda}
             onResultado={(partido) => setPartidoResultado(partido)}
+            onEliminar={(tipo, registro) =>
+              setEliminacionPendiente({
+                tipo,
+                id: registro.id_torneo || registro.id_equipo,
+                nombre: registro.nombre,
+              })
+            }
+            onIrTorneo={(torneo) => {
+              setVista("Torneos");
+              setBusqueda(torneo?.nombre || "");
+            }}
           />
         )}
       </main>
@@ -893,12 +959,61 @@ function App() {
           </form>
         </div>
       )}
+      {eliminacionPendiente && (
+        <div className="modal-backdrop" onClick={() => setEliminacionPendiente(null)}>
+          <form className="modal" onSubmit={eliminarRegistro} onClick={(evento) => evento.stopPropagation()}>
+            <div className="panel-heading">
+              <div>
+                <span className="eyebrow orange">CONFIRMAR ACCIÓN</span>
+                <h3>
+                  {eliminacionPendiente.tipo === "Equipo"
+                    ? "Descalificar equipo"
+                    : "Terminar torneo"}
+                </h3>
+              </div>
+              <button type="button" className="close" onClick={() => setEliminacionPendiente(null)}>×</button>
+            </div>
+            <p className="modal-context">
+              {eliminacionPendiente.tipo === "Equipo"
+                ? "¿Desea descalificar este equipo?"
+                : "¿Desea eliminar este torneo?"}
+              <br />
+              {eliminacionPendiente.nombre || "Registro seleccionado"}
+            </p>
+            {eliminacionPendiente.tipo === "Equipo" ? (
+              <button
+                className="primary danger-action"
+                type="button"
+                onClick={cambiarEstadoEnLugarDeEliminar}
+              >
+                Descalificar
+              </button>
+            ) : (
+              <div className="modal-actions">
+                <button className="primary danger-action" type="submit">
+                  Sí, terminar
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  onClick={cambiarEstadoEnLugarDeEliminar}
+                >
+                  No, terminar
+                </button>
+              </div>
+            )}
+          </form>
+        </div>
+      )}
     </div>
   );
 }
 
 function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
   const [torneoActivo, setTorneoActivo] = useState("");
+  const [tablaTorneo, setTablaTorneo] = useState([]);
+  const [cargandoTabla, setCargandoTabla] = useState(false);
+  const [seccionActiva, setSeccionActiva] = useState("resumen");
   const iniciales = sesion.user.nombre
     .split(" ")
     .map((nombre) => nombre[0])
@@ -910,10 +1025,70 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
     torneos.find(
       (torneo) => String(torneo.id_torneo) === String(torneoActivo),
     ) || torneos[0];
-  const partidos = recursos.partidos.length
-    ? recursos.partidos
-    : datosPanel.proximos || [];
-  const tabla = recursos.tabla.length ? recursos.tabla : [];
+  const idTorneoSeleccionado = torneoSeleccionado?.id_torneo;
+
+  useEffect(() => {
+    if (!idTorneoSeleccionado) {
+      return undefined;
+    }
+    let activo = true;
+    solicitarApi(
+      `/api/torneos/${idTorneoSeleccionado}/tabla-posiciones`,
+      sesion.token,
+    )
+      .then((tablaActualizada) => {
+        if (activo) setTablaTorneo(tablaActualizada);
+      })
+      .catch(() => {
+        if (activo) setTablaTorneo([]);
+      })
+      .finally(() => {
+        if (activo) setCargandoTabla(false);
+      });
+    return () => {
+      activo = false;
+    };
+  }, [idTorneoSeleccionado, sesion.token]);
+
+  const partidosDelTorneo = recursos.partidos.filter(
+    (partido) =>
+      String(partido.id_torneo) === String(idTorneoSeleccionado),
+  );
+  const partidos = partidosDelTorneo.length
+    ? partidosDelTorneo
+    : (datosPanel.proximos || []).filter(
+        (partido) =>
+          String(partido.id_torneo) === String(idTorneoSeleccionado),
+      );
+  const tabla = tablaTorneo;
+  const equiposEnPartidos = new Set(
+    partidos.flatMap((partido) => [
+      partido.id_equipo_local,
+      partido.id_equipo_visita,
+    ]),
+  ).size;
+
+  function cambiarTorneo(evento) {
+    setTorneoActivo(evento.target.value);
+    setTablaTorneo([]);
+    setCargandoTabla(true);
+    setSeccionActiva("resumen");
+  }
+
+  const partidosPorJornada = Object.entries(
+    partidos.reduce((jornadas, partido) => {
+      const jornada = partido.jornada_numero || 1;
+      jornadas[jornada] = [...(jornadas[jornada] || []), partido];
+      return jornadas;
+    }, {}),
+  ).sort(([a], [b]) => Number(a) - Number(b));
+  const equiposDelTorneo = new Map(
+    tabla.map((equipo) => [equipo.id_equipo, equipo.nombre_equipo]),
+  );
+
+  function nombreEquipo(idEquipo) {
+    return equiposDelTorneo.get(idEquipo) || `Equipo #${idEquipo}`;
+  }
 
   return (
     <div className="spectator-shell">
@@ -939,7 +1114,7 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
           {torneos.length > 0 && (
             <select
               value={torneoSeleccionado.id_torneo}
-              onChange={(evento) => setTorneoActivo(evento.target.value)}
+              onChange={cambiarTorneo}
             >
               {torneos.map((torneo) => (
                 <option value={torneo.id_torneo} key={torneo.id_torneo}>
@@ -965,7 +1140,9 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
           <>
             <section className="tournament-hero">
               <div>
-                <span className="tournament-status">● EN CURSO</span>
+                <span className="tournament-status">
+                  ● {torneoSeleccionado.estado?.toUpperCase() || "EN CURSO"}
+                </span>
                 <h2>{torneoSeleccionado.nombre}</h2>
                 <p>
                   {torneoSeleccionado.categoria ||
@@ -974,24 +1151,30 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
                 </p>
               </div>
               <div className="tournament-meta">
-                <strong>{datosPanel.equipos}</strong>
+                <strong>{equiposEnPartidos}</strong>
                 <span>equipos inscritos</span>
               </div>
               <div className="tournament-meta">
-                <strong>{datosPanel.partidos}</strong>
-                <span>partidos jugados</span>
+                <strong>{partidos.length}</strong>
+                <span>partidos registrados</span>
               </div>
             </section>
             <nav className="spectator-tabs" aria-label="Secciones del torneo">
-              <a className="active" href="#resumen">
-                Resumen
-              </a>
-              <a href="#bracket">Bracket</a>
-              <a href="#partidos">Partidos</a>
-              <a href="#posiciones">Posiciones</a>
+              {["resumen", "bracket", "partidos", "posiciones"].map(
+                (seccion) => (
+                  <button
+                    className={seccionActiva === seccion ? "active" : ""}
+                    key={seccion}
+                    onClick={() => setSeccionActiva(seccion)}
+                  >
+                    {seccion[0].toUpperCase() + seccion.slice(1)}
+                  </button>
+                ),
+              )}
             </nav>
-            <div className="spectator-grid" id="resumen">
-              <section className="spectator-panel bracket-panel" id="bracket">
+            {seccionActiva === "resumen" && (
+              <div className="spectator-grid" id="resumen">
+                <section className="spectator-panel bracket-panel">
                 <div className="spectator-panel-heading">
                   <div>
                     <span className="eyebrow">FASE FINAL</span>
@@ -999,34 +1182,13 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
                   </div>
                   <span className="round-label">Jornada 06</span>
                 </div>
-                <div className="bracket-board">
-                  <BracketRound
-                    title="Cuartos"
-                    teams={[
-                      ["Titanes FC", "2"],
-                      ["Pixel Warriors", "1"],
-                      ["Neon United", "3"],
-                      ["Quantum XI", "2"],
-                    ]}
+                  <BracketBoard
+                    jornadas={partidosPorJornada}
+                    nombreEquipo={nombreEquipo}
+                    modalidad={torneoSeleccionado.modalidad}
                   />
-                  <BracketRound
-                    title="Semifinal"
-                    teams={[
-                      ["Titanes FC", ""],
-                      ["Neon United", ""],
-                    ]}
-                  />
-                  <BracketRound
-                    title="Final"
-                    teams={[
-                      ["Por definir", ""],
-                      ["Por definir", ""],
-                    ]}
-                    final
-                  />
-                </div>
-              </section>
-              <section className="spectator-panel" id="partidos">
+                </section>
+                <section className="spectator-panel">
                 <div className="spectator-panel-heading">
                   <div>
                     <span className="eyebrow">AGENDA</span>
@@ -1035,7 +1197,7 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
                   <span className="live-dot">EN VIVO</span>
                 </div>
                 <div className="spectator-matches">
-                  {cargando ? (
+                  {cargando || cargandoTabla ? (
                     <p className="empty">Cargando partidos...</p>
                   ) : (
                     partidos.map((partido) => (
@@ -1055,9 +1217,33 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
                     ))
                   )}
                 </div>
+                </section>
+              </div>
+            )}
+            {seccionActiva === "bracket" && (
+              <section className="spectator-panel" id="bracket">
+                <div className="spectator-panel-heading">
+                  <div><span className="eyebrow">FASE DEL TORNEO</span><h3>Bracket actualizado</h3></div>
+                  <span className="round-label">{partidos.length} partidos</span>
+                </div>
+                <BracketBoard jornadas={partidosPorJornada} nombreEquipo={nombreEquipo} modalidad={torneoSeleccionado.modalidad} />
               </section>
-            </div>
-            <section
+            )}
+            {seccionActiva === "partidos" && (
+              <section className="spectator-panel" id="partidos">
+                <div className="spectator-panel-heading"><div><span className="eyebrow">AGENDA COMPLETA</span><h3>Partidos del torneo</h3></div></div>
+                <div className="spectator-matches">
+                  {partidos.map((partido) => (
+                    <div className="spectator-match" key={partido.id_partido}>
+                      <div><strong>{nombreEquipo(partido.id_equipo_local)} vs {nombreEquipo(partido.id_equipo_visita)}</strong><span>{formatearFecha(partido.fecha_hora)} · {partido.cancha}</span></div>
+                      <span className="match-tag">{partido.estado}</span>
+                    </div>
+                  ))}
+                  {!partidos.length && <p className="empty">No hay partidos programados.</p>}
+                </div>
+              </section>
+            )}
+            {seccionActiva === "posiciones" && <section
               className="spectator-panel standings-panel"
               id="posiciones"
             >
@@ -1072,16 +1258,20 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
                 <span>#</span>
                 <span>Equipo</span>
                 <span>PJ</span>
+                <span>G-E-P</span>
                 <span>PTS</span>
                 <span>DG</span>
               </div>
-              {tabla.map((equipo, index) => (
+              {cargandoTabla ? (
+                <p className="empty">Cargando posiciones...</p>
+              ) : tabla.map((equipo, index) => (
                 <div className="spectator-table" key={equipo.id_equipo}>
                   <span className="table-rank">
                     {String(index + 1).padStart(2, "0")}
                   </span>
                   <strong>{equipo.nombre_equipo}</strong>
                   <span>{equipo.partidos_jugados}</span>
+                  <span>{equipo.ganados}-{equipo.empatados}-{equipo.perdidos}</span>
                   <b>{equipo.puntos}</b>
                   <span className="goal">
                     {equipo.diferencia_goles > 0
@@ -1090,10 +1280,10 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
                   </span>
                 </div>
               ))}
-              {!cargando && !tabla.length && (
+              {!cargando && !cargandoTabla && !tabla.length && (
                 <p className="empty">Aún no hay resultados finalizados.</p>
               )}
-            </section>
+            </section>}
           </>
         )}
       </main>
@@ -1101,18 +1291,34 @@ function SpectatorPage({ sesion, datosPanel, recursos, cargando, onLogout }) {
   );
 }
 
-function BracketRound({ title, teams, final = false }) {
+function BracketBoard({ jornadas, nombreEquipo, modalidad }) {
+  if (!jornadas.length) {
+    return <p className="empty">Todavía no hay cruces para mostrar.</p>;
+  }
   return (
-    <div className={`bracket-round ${final ? "final" : ""}`}>
-      <span className="bracket-round-title">{title}</span>
-      <div className="bracket-games">
-        {teams.map(([team, score], index) => (
-          <div className="bracket-game" key={`${team}-${index}`}>
-            <span>{team}</span>
-            <b>{score}</b>
+    <div className="bracket-board">
+      {jornadas.map(([jornada, partidos]) => (
+        <div className="bracket-round" key={jornada}>
+          <span className="bracket-round-title">
+            {modalidad === "Liga" ? `Jornada ${jornada}` : `Ronda ${jornada}`}
+          </span>
+          <div className="bracket-games">
+            {partidos.map((partido) => {
+              const finalizado = partido.estado === "Finalizado";
+              const localGana = partido.goles_local > partido.goles_visita;
+              const visitaGana = partido.goles_visita > partido.goles_local;
+              return (
+                <div className="bracket-game" key={partido.id_partido}>
+                  <span className={finalizado && localGana ? "winner" : ""}>{nombreEquipo(partido.id_equipo_local)}</span>
+                  <b>{finalizado ? partido.goles_local : "-"}</b>
+                  <span className={finalizado && visitaGana ? "winner" : ""}>{nombreEquipo(partido.id_equipo_visita)}</span>
+                  <b>{finalizado ? partido.goles_visita : "-"}</b>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -1133,27 +1339,53 @@ function SectionPage({
   recursos,
   cargando,
   puedeAdministrar,
+  idUsuario,
   busqueda,
   onBusqueda,
   onResultado,
+  onEliminar,
+  onIrTorneo,
 }) {
+  const tablas = recursos.tablas || [];
+  const primeraTablaDisponible = tablas.find(({ tabla }) => tabla.length);
+  const [torneoTabla, setTorneoTabla] = useState(
+    primeraTablaDisponible?.id_torneo || "",
+  );
+  const tablaSeleccionada =
+    tablas.find(
+      ({ id_torneo }) => String(id_torneo) === String(torneoTabla),
+    ) || primeraTablaDisponible;
+  const [torneoPartidos, setTorneoPartidos] = useState("todos");
   const filasTorneos = recursos.torneos.map((torneo) => [
     torneo.nombre,
     torneo.modalidad,
     torneo.estado,
+    torneo,
   ]);
   const filasEquipos = recursos.equipos.map((equipo) => [
     equipo.nombre,
     `${equipo.Jugadors?.length || equipo.Jugadores?.length || 0} jugadores`,
-    "Registrado",
+    (equipo.Torneos?.find(
+      (torneo) => torneo.InscripcionTorneo?.estado === "Aprobado",
+    ) || equipo.Torneos?.[0])?.nombre || "Sin torneo asignado",
+    equipo,
+    equipo.Torneos?.find(
+      (torneo) => torneo.InscripcionTorneo?.estado === "Aprobado",
+    ) || equipo.Torneos?.[0],
   ]);
-  const filasPartidos = recursos.partidos.map((partido) => [
+  const filasPartidos = recursos.partidos
+    .filter(
+      (partido) =>
+        torneoPartidos === "todos" ||
+        String(partido.id_torneo) === String(torneoPartidos),
+    )
+    .map((partido) => [
     partido.Torneo?.nombre || "Torneo sin nombre",
     formatearFecha(partido.fecha_hora),
     partido.estado,
     partido,
-  ]);
-  const filasTabla = recursos.tabla.map((equipo) => [
+    ]);
+  const filasTabla = (tablaSeleccionada?.tabla || []).map((equipo) => [
     equipo.nombre_equipo || `Equipo #${equipo.id_equipo}`,
     `${equipo.partidos_jugados} partidos`,
     `${equipo.puntos} puntos`,
@@ -1209,6 +1441,39 @@ function SectionPage({
             aria-label={`Buscar en ${vista}`}
           />
         </label>
+        {vista === "Tabla de posiciones" && tablas.length > 0 && (
+          <label className="search-field">
+            Torneo
+            <select
+              value={tablaSeleccionada?.id_torneo || ""}
+              onChange={(evento) => setTorneoTabla(evento.target.value)}
+              aria-label="Seleccionar torneo para la tabla de posiciones"
+            >
+              {tablas.map((torneo) => (
+                <option value={torneo.id_torneo} key={torneo.id_torneo}>
+                  {torneo.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {vista === "Partidos" && recursos.torneos.length > 0 && (
+          <label className="search-field">
+            Torneo
+            <select
+              value={torneoPartidos}
+              onChange={(evento) => setTorneoPartidos(evento.target.value)}
+              aria-label="Filtrar partidos por torneo"
+            >
+              <option value="todos">Todos los torneos</option>
+              {recursos.torneos.map((torneo) => (
+                <option value={torneo.id_torneo} key={torneo.id_torneo}>
+                  {torneo.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <div className="data-list">
         {cargando ? (
@@ -1224,15 +1489,39 @@ function SectionPage({
               <b>{fila[2]}</b>
               {vista === "Partidos" &&
                 puedeAdministrar &&
-                fila[3]?.estado !== "Finalizado" && (
+                puedeRegistrarResultado(fila[3]) && (
                   <button
                     className="row-action"
                     onClick={() => onResultado(fila[3])}
                   >
-                    Resultado
+                    {fila[3].estado === "Finalizado"
+                      ? "Editar resultado"
+                      : "Registrar resultado"}
                   </button>
                 )}
-              <span className="arrow">›</span>
+              {vista === "Torneos" && puedeAdministrar && (
+                <button className="row-action danger-action" onClick={() => onEliminar("Torneo", fila[3])}>
+                  Terminar
+                </button>
+              )}
+              {vista === "Equipos" &&
+                (puedeAdministrar || fila[3]?.id_delegado === idUsuario) && (
+                  <button className="row-action danger-action" onClick={() => onEliminar("Equipo", fila[3])}>
+                    Descalificar
+                  </button>
+                )}
+              {vista === "Equipos" && fila[4] ? (
+                <button
+                  className="arrow row-link"
+                  title={`Ver torneo ${fila[4].nombre}`}
+                  aria-label={`Ver torneo ${fila[4].nombre}`}
+                  onClick={() => onIrTorneo(fila[4])}
+                >
+                  ›
+                </button>
+              ) : (
+                <span className="arrow">›</span>
+              )}
             </div>
           ))
         ) : (

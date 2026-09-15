@@ -11,6 +11,30 @@ CREATE TABLE IF NOT EXISTS usuarios (
   updated_at DATETIME NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS registros_usuarios (
+  id_registro INT AUTO_INCREMENT PRIMARY KEY,
+  id_usuario INT NOT NULL,
+  fecha_registro DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  estado ENUM('Activo', 'Cancelado') NOT NULL DEFAULT 'Activo',
+  ip_registro VARCHAR(45),
+  user_agent VARCHAR(255),
+  FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  INDEX idx_registros_usuarios_usuario (id_usuario),
+  INDEX idx_registros_usuarios_fecha (fecha_registro)
+);
+
+CREATE TABLE IF NOT EXISTS registros_eliminaciones (
+  id_eliminacion INT AUTO_INCREMENT PRIMARY KEY,
+  entidad ENUM('Equipo', 'Torneo') NOT NULL,
+  id_entidad INT NOT NULL,
+  motivo ENUM('Descalificado', 'Sancionado') NOT NULL,
+  id_usuario INT NOT NULL,
+  fecha_eliminacion DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario),
+  INDEX idx_eliminaciones_entidad (entidad, id_entidad),
+  INDEX idx_eliminaciones_fecha (fecha_eliminacion)
+);
+
 CREATE TABLE IF NOT EXISTS torneos (
   id_torneo INT AUTO_INCREMENT PRIMARY KEY,
   nombre VARCHAR(100) NOT NULL,
@@ -28,6 +52,7 @@ CREATE TABLE IF NOT EXISTS equipos (
   nombre VARCHAR(100) NOT NULL,
   escudo_url VARCHAR(255),
   id_delegado INT NOT NULL,
+  estado ENUM('Activo', 'Descalificado') NOT NULL DEFAULT 'Activo',
   created_at DATETIME NOT NULL,
   updated_at DATETIME NOT NULL,
   FOREIGN KEY (id_delegado) REFERENCES usuarios(id_usuario)

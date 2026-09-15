@@ -68,3 +68,30 @@ export async function decidirInscripcion(req, res, next) {
 		return next(error);
 	}
 }
+
+export async function eliminarEquipo(req, res, next) {
+	try {
+		const resultado = await equipoService.eliminarEquipo(
+			req.params.id_equipo,
+			req.body.motivo,
+			req.usuario,
+		);
+		if (!resultado) return res.status(404).json({ error: "Equipo no encontrado" });
+		return res.json(resultado);
+	} catch (error) {
+		return next(error);
+	}
+}
+
+export async function descalificarEquipo(req, res, next) {
+	try {
+		const resultado = await equipoService.descalificarEquipo(
+			req.params.id_equipo,
+			req.usuario,
+		);
+		if (!resultado) return res.status(404).json({ error: "Equipo no encontrado" });
+		return res.json(resultado);
+	} catch (error) {
+		return next(error);
+	}
+}

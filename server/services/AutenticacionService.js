@@ -47,6 +47,9 @@ export async function registrar(datos) {
     rol,
     password,
   });
+  await usuarioRepository.crearRegistroUsuario({
+    id_usuario: usuario.id_usuario,
+  });
   return { usuario };
 }
 
